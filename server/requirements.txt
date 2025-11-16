@@ -1,0 +1,29 @@
+# requirements.txt (Final, Version-Locked)
+
+# Core Web App
+Flask==3.0.3
+Flask-Cors==5.0.0
+pymongo==4.10.1
+python-dotenv==1.0.1
+bcrypt==4.2.1
+PyJWT==2.10.1
+requests
+
+# Analysis Pipeline
+deepface
+speechbrain
+opencv-contrib-python
+pandas
+pydub
+librosa
+
+# AI and Cloud Services
+google-generativeai
+
+# --- Critical Version Locks for Stability ---
+numpy<2.0
+tensorflow-cpu==2.12
+transformers==4.31.0
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2

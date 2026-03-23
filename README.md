@@ -33,10 +33,13 @@
 - [Analysis Features](#-analysis-features)
 - [Database Schema](#-database-schema)
 - [Performance Metrics](#-performance-metrics)
+- [Security Features](#-security-features)
 - [Troubleshooting](#-troubleshooting)
 - [Future Roadmap](#-future-roadmap)
 - [Contributing](#-contributing)
 - [License](#-license)
+- [Support & Contact](#-support--contact)
+- [Acknowledgments](#-acknowledgments)
 
 </details>
 
@@ -108,32 +111,34 @@ ORATIO is ideal for professionals, students, job seekers, and organizations look
 
 ORATIO employs a sophisticated multi-stage processing pipeline:
 
-```
-User Upload (Video/Audio)
-           ↓
-    ┌─────────────────┐
-    │  Preprocessing  │ ← Extract audio, normalize, chunk
-    └────────┬────────┘
-             ↓
-    ┌─────────────────┐
-    │  Parallel Stage │ ← Run 3 analysis in parallel
-    │   1: Analysis   │
-    └────────┬────────┘
-      ├──→ Transcription (Whisper)
-      ├──→ Vocal Emotion (SpeechBrain)
-      └──→ Facial Emotion (DeepFace)
-             ↓
-    ┌─────────────────┐
-    │  Linguistic     │ ← Analyze transcription
-    │  Analysis       │
-    └────────┬────────┘
-             ↓
-    ┌─────────────────┐
-    │  Report Gen     │ ← Gemini API synthesizes insights
-    │  (Gemini AI)    │
-    └────────┬────────┘
-             ↓
-    Database Storage + UI Display
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph TD
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    A[User Upload]:::whiteText --> B[Preprocessing]:::whiteText
+    subgraph Preprocessing
+        B --> B1[Extract Audio]:::whiteText
+        B --> B2[Normalize 16kHz]:::whiteText
+        B --> B3[Audio Chunking]:::whiteText
+    end
+    B3 --> C{Parallel Analysis}:::whiteText
+    subgraph Analysis Engine
+        C -->|Audio| C1[OpenAI Whisper]:::whiteText
+        C -->|Audio| C2[SpeechBrain]:::whiteText
+        C -->|Video| C3[DeepFace]:::whiteText
+    end
+    C1 -->|Text| D[spaCy NLP]:::whiteText
+    D -->|Metrics| E[Gemini AI]:::whiteText
+    C2 -->|Emotions| E
+    C3 -->|Expressions| E
+    E -->|Synthesis| F[Comprehensive Report]:::whiteText
+    F --> G[(MongoDB Storage)]:::whiteText
+    G --> H[Interactive UI]:::whiteText
+
+    style A fill:#f9f,color:#000,stroke:#333,stroke-width:2px
+    style G fill:#13aa52,color:#fff,stroke-width:2px
+    style E fill:#4285F4,color:#fff
+    style H fill:#ff9800,color:#fff
 ```
 
 ### Processing Pipeline Details
@@ -166,241 +171,93 @@ User Upload (Video/Audio)
 
 ### High-Level Architecture Diagram
 
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph TD
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    subgraph "Client Layer (Next.js)"
+        UI[User Interface]:::whiteText
+        Auth[JWT Auth]:::whiteText
+        Dash[Dashboard]:::whiteText
+        Rep[Report Viewer]:::whiteText
+    end
+
+    subgraph "API Gateway (Flask)"
+        GW[Flask Application]:::whiteText
+        R1[Auth Routes]:::whiteText
+        R2[Upload Routes]:::whiteText
+        R3[Report Routes]:::whiteText
+    end
+
+    subgraph "DL Analysis Engine"
+        WH[Whisper]:::whiteText
+        SB[SpeechBrain]:::whiteText
+        DF[DeepFace]:::whiteText
+        SP[spaCy]:::whiteText
+        GM[Gemini AI]:::whiteText
+    end
+
+    UI -- HTTP/REST --> GW
+    GW -- Orchestrates --> DL
+    subgraph DL [Processing Logic]
+        WH
+        SB
+        DF
+        SP
+        GM
+    end
+
+    GM -- Persists --> DB[(MongoDB)]:::whiteText
+    Dash -- Fetches --> DB
+
+    style UI fill:#000,color:#fff
+    style GW fill:#333,color:#fff
+    style DB fill:#13aa52,color:#fff
+    style GM fill:#4285F4,color:#fff
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                          CLIENT LAYER (Next.js)                            │
-├────────────────────────────────────────────────────────────────────────────┤
-│  Authentication │ Dashboard │ Session Manager │ Report Viewer │ Chat UI  │
-└────────────────┬─────────────────────────────────────────────────────────┘
-                 │
-                 ▼ HTTP/REST API
-┌────────────────────────────────────────────────────────────────────────────┐
-│                       API GATEWAY (Flask)                                  │
-├────────────────────────────────────────────────────────────────────────────┤
-│  │
-│  ├─ /api/auth/* ────→ Authentication Routes
-│  ├─ /api/upload/* ──→ File Upload & Processing Orchestrator
-│  ├─ /api/reports/* ─→ Report Retrieval & Management
-│  └─ /api/admin/* ──→ Admin Operations
-│
-└────────────────┬─────────────────────────────────────────────────────────┘
-                 │
-    ┌────────────┼────────────┐
-    ▼            ▼            ▼
-┌─────────┐  ┌─────────┐  ┌──────────────┐
-│ Models  │  │ Routes  │  │ Utilities    │
-│ Manager │  │Handler  │  │ & Services   │
-└────┬────┘  └────┬────┘  └──────┬───────┘
-     │            │               │
-     ├────────────┼───────────────┤
-     ▼            ▼               ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                    ML/DL ANALYSIS ENGINE                                   │
-├────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Whisper     │  │ SpeechBrain  │  │  DeepFace    │  │   spaCy      │  │
-│  │              │  │              │  │              │  │              │  │
-│  │ Transcription│  │ Vocal Emotion│  │ Facial Emotion│ │ Linguistics  │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐ │
-│  │              Gemini AI Report Generation & Synthesis                 │ │
-│  │  (with Rate Limiting & Smart Caching)                               │ │
-│  └──────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-└────────────────────────────────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                    DATA PERSISTENCE LAYER                                  │
-├────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │  Users       │  │  Reports     │  │  Overall     │  │  Cache       │  │
-│  │  Collection  │  │  Collection  │  │  Reports     │  │  Storage     │  │
-│  │              │  │              │  │  Collection  │  │              │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
-│                           MongoDB                                           │
-│                                                                              │
-└────────────────────────────────────────────────────────────────────────────┘
-```
+
+---
 
 ### Data Flow Architecture
 
-```
-VIDEO/AUDIO INPUT
-       │
-       ▼
-  ┌─────────────────────────────────┐
-  │   FFmpeg Audio Extraction       │
-  │  (In-Memory Processing)         │
-  │  16kHz, Mono, Float32           │
-  └────────────┬────────────────────┘
-               │
-       ┌───────┴──────────┬──────────┐
-       ▼                  ▼          ▼
-  ┌─────────┐        ┌──────────┐  ┌──────────┐
-  │Whisper  │        │SpeechBrain│ │DeepFace  │
-  │Chunks:  │        │Windows:   │ │Frames:   │
-  │30s+0.5s │        │4 seconds  │ │1 FPS     │
-  │overlap  │        │           │ │          │
-  └────┬────┘        └─────┬─────┘ └────┬─────┘
-       │                   │            │
-       ▼                   ▼            ▼
-  ┌────────┐          ┌─────────┐  ┌────────┐
-  │TEXT    │          │EMOTIONS │  │EMOTIONS│
-  │+TIME   │          │+TIME    │  │+TIME   │
-  └────┬───┘          └────┬────┘  └───┬────┘
-       │                   │           │
-       └───────────────────┼───────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ spaCy NLP   │
-                    │ Linguistics │
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────────┐
-                    │ Metrics Dict    │
-                    │ Compilation     │
-                    └──────┬──────────┘
-                           │
-                    ┌──────▼──────────────┐
-                    │ Gemini API         │
-                    │ Report Generation  │
-                    │ (Rate Limited)     │
-                    └──────┬──────────────┘
-                           │
-                    ┌──────▼──────────────┐
-                    │ Comprehensive      │
-                    │ Report + Scores    │
-                    │ Storage            │
-                    └────────────────────┘
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+sequenceDiagram
+    participant U as User
+    participant B as Backend (Flask)
+    participant ML as ML Pipeline
+    participant G as Gemini AI
+    participant DB as MongoDB
+
+    U->>B: Upload Video/Audio
+    B->>ML: Start Parallel Analysis
+    activate ML
+    ML-->>ML: Whisper Transcription
+    ML-->>ML: SpeechBrain Emotion
+    ML-->>ML: DeepFace Expressions
+    deactivate ML
+    ML->>B: Raw Metrics
+    B->>G: Synthesize Analytics
+    G-->>B: Detailed Report & Scores
+    B->>DB: Store Report
+    B-->>U: Analysis Complete
 ```
 
 ---
 
 ## 📁 Project Structure
 
-```
+```bash
 ORATIO-Final/
-│
-├── 📄 README.md                          # This file
-│
-├── 📂 client/                            # Frontend (Next.js + React)
-│   ├── 📄 package.json                   # Frontend dependencies
-│   ├── 📄 next.config.mjs                # Next.js configuration
-│   ├── 📄 tailwind.config.js             # Tailwind CSS configuration
-│   ├── 📄 postcss.config.mjs             # PostCSS configuration
-│   ├── 📄 jsconfig.json                  # JS compiler options
-│   │
-│   └── 📂 app/                           # Next.js app directory
-│       ├── 📄 page.jsx                   # Home page
-│       ├── 📄 layout.js                  # Root layout
-│       ├── 📄 globals.css                # Global styles
-│       │
-│       ├── 📂 (login_signup)/            # Authentication routes
-│       │   ├── 📂 login/
-│       │   │   └── 📄 page.jsx
-│       │   └── 📂 signup/
-│       │       └── 📄 page.jsx
-│       │
-│       ├── 📂 dashboard/                 # Dashboard pages
-│       │   ├── 📄 page.jsx               # Main dashboard
-│       │   └── 📄 Recents.jsx            # Recent sessions
-│       │
-│       ├── 📂 chat/                      # Chat interface
-│       │   └── 📄 page.jsx
-│       │
-│       ├── 📂 session/                   # Session management
-│       │   ├── 📄 context.jsx            # Session context
-│       │   ├── 📄 microphone.css
-│       │   └── ... other session files
-│       │
-│       ├── 📂 report/                    # Report pages
-│       │   ├── 📄 page.jsx
-│       │   └── 📄 scores.jsx
-│       │
-│       ├── 📂 profile/                   # User profile
-│       │   └── 📄 page.jsx
-│       │
-│       ├── 📂 allreports/                # All reports view
-│       │   └── 📄 page.jsx
-│       │
-│       ├── 📂 components/                # Reusable React components
-│       │   ├── 📄 Navbar.jsx             # Navigation bar
-│       │   ├── 📄 Sidebar.jsx            # Sidebar navigation
-│       │   ├── 📄 DashboardLayout.jsx    # Dashboard wrapper
-│       │   ├── 📄 ProfileCard.jsx        # User profile card
-│       │   ├── 📄 OverallScore.jsx       # Overall score display
-│       │   ├── 📄 PerformanceChart.jsx   # Performance visualization
-│       │   ├── 📄 ReportCharts.jsx       # Report charts
-│       │   ├── 📄 CollapsibleCard.jsx    # Collapsible UI element
-│       │   ├── 📄 ConfirmDialog.jsx      # Confirmation dialog
-│       │   ├── 📄 ThemeSwitch.module.css # Theme switching styles
-│       │   ├── 📄 AnimatedCircularBar.jsx # Circular progress
-│       │   ├── 📄 ScrollReveal.jsx       # Scroll animations
-│       │   ├── 📄 soundwave.jsx          # Audio visualization
-│       │   ├── 📄 bg.css
-│       │   └── 📄 - bg graphics
-│       │
-│       ├── 📂 context/                   # React Context API
-│       │   ├── 📄 DashboardDataContext.jsx
-│       │   └── 📄 ThemeContext.jsx       # Theme management
-│       │
-│       └── 📂 public/                    # Static assets
-│           └── 📂 testimonials/
-│
-├── 📂 server/                            # Backend (Flask + Python)
-│   ├── 📄 app.py                         # Flask application entry point
-│   ├── 📄 model_manager.py               # ML model loading & caching
-│   ├── 📄 requirements.txt               # Python dependencies
-│   ├── 📄 setup.bat                      # Windows setup script
-│   ├── 📄 setup.sh                       # Linux/Mac setup script
-│   ├── 📄 .env                           # Environment variables (not in repo)
-│   │
-│   ├── 📂 routes/                        # API route handlers
-│   │   ├── 📄 __init__.py
-│   │   ├── 📄 auth_routes.py             # Authentication endpoints
-│   │   ├── 📄 user_routes.py             # User management endpoints
-│   │   └── 📄 admin_routes.py            # Admin endpoints
-│   │
-│   ├── 📂 utils/                         # Utility modules
-│   │   ├── 📄 __init__.py
-│   │   ├── 📄 auth.py                    # JWT & password utilities
-│   │   ├── 📄 audioextraction.py         # Audio processing
-│   │   ├── 📄 transcription.py           # Whisper transcription
-│   │   ├── 📄 vocals.py                  # Vocal emotion detection
-│   │   ├── 📄 expressions.py             # Facial emotion detection
-│   │   ├── 📄 linguistic_analysis.py     # spaCy NLP analysis
-│   │   ├── 📄 vocabulary.py              # Vocabulary metrics
-│   │   ├── 📄 gemini_rate_limiter.py     # API rate limiting
-│   │   └── 📄 text.md
-│   │
-│   ├── 📂 tmp_emotion_model/             # Custom emotion model
-│   │   ├── 📄 custom_interface.py
-│   │   ├── 📄 hyperparams.yaml
-│   │   └── 📄 label_encoder.txt
-│   │
-│   ├── 📂 Documents/                     # Technical documentation
-│   │   ├── 📄 SYSTEM_ARCHITECTURE.md
-│   │   ├── 📄 SETUP_GUIDE.md
-│   │   ├── 📄 QUICK_START.md
-│   │   ├── 📄 INTEGRATION_GUIDE.md
-│   │   ├── 📄 FINAL_IMPLEMENTATION.md
-│   │   ├── 📄 DETAILED_PIPELINE_GUIDE.md
-│   │   ├── 📄 MODEL_SELECTION_SUMMARY.md
-│   │   ├── 📄 RATE_LIMIT_SOLUTION.md
-│   │   ├── 📄 SYSTEM_ARCHITECTURE.md
-│   │   ├── 📄 COMPREHENSIVE_TECHNICAL_REPORT.md
-│   │   └── 📄 ... other documentation
-│   │
-│   ├── 📂 Uploads/                       # Temporary upload storage
-│   │
-│   └── 📄 data.csv                       # Sample data
-│
-└── 📂 scripts/                           # Utility scripts
-    └── 📄 scan_largest.ps1               # PowerShell utility
+├── 📂 client/           # Frontend: Next.js, Tailwind, Chart.js
+│   ├── 📂 app/          # App Router: Dashboard, Auth, Reports
+│   ├── 📂 components/   # Reusable UI Components
+│   └── 📂 context/      # State Management
+├── 📂 server/           # Backend: Flask, MongoDB, ML Orchestration
+│   ├── 📂 routes/       # API Architecture
+│   ├── 📂 utils/        # AI logic, NLP, Audio Processing
+│   └── 📂 Documents/    # Technical Whitepapers
+└── 📂 scripts/          # Automation & Utilities
 ```
 
 ---
@@ -682,90 +539,149 @@ curl -X GET http://localhost:5000/api/reports/<report_id> \
 ## 📊 Analysis Features
 
 ### Voice Analysis Module
-```
-Metrics Extracted:
-├── Vocal Emotions
-│   ├── Neutral: 45%
-│   ├── Happy: 30%
-│   ├── Angry: 15%
-│   └── Sad: 10%
-├── Pace Analysis
-│   ├── Average WPM: 145
-│   ├── Variance: ±12
-│   └── Pacing Quality: Good
-├── Volume Metrics
-│   ├── Average dB: -20
-│   ├── Dynamic Range: 15dB
-│   └── Volume Consistency: 85%
-└── Modulation Patterns
-    ├── Pitch Range: 2+ octaves
-    ├── Intonation: Natural
-    └── Emphasis Quality: Strong
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph LR
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    Root((Voice Analysis)):::whiteText
+    VE[Vocal Emotions]:::whiteText
+    PA[Pace Analysis]:::whiteText
+    VM[Volume Metrics]:::whiteText
+    MO[Modulation]:::whiteText
+    
+    Root --- VE
+    Root --- PA
+    Root --- VM
+    Root --- MO
+    
+    VE --- V1(Neutral 45%):::whiteText
+    VE --- V2(Happy 30%):::whiteText
+    VE --- V3(Angry 15%):::whiteText
+    VE --- V4(Sad 10%):::whiteText
+    
+    PA --- P1(Avg WPM 145):::whiteText
+    PA --- P2(Variance ±12):::whiteText
+    PA --- P3(Good Quality):::whiteText
+    
+    VM --- VM1(Avg -20dB):::whiteText
+    VM --- VM2(Range 15dB):::whiteText
+    VM --- VM3(Consistency 85%):::whiteText
+    
+    MO --- MO1(Pitch Range 2+ oct):::whiteText
+    MO --- MO2(Natural Intonation):::whiteText
+    
+    style Root fill:#4285F4,color:#fff
+    style VE fill:#EA4335,color:#fff
+    style PA fill:#FBBC05,color:#fff
+    style VM fill:#34A853,color:#fff
+    style MO fill:#8E44AD,color:#fff
 ```
 
 ### Vocabulary Analysis Module
-```
-Metrics Extracted:
-├── Word Categories
-│   ├── Power Words: 18 detected
-│   ├── Filler Words: 12 detected
-│   ├── Hedge Words: 5 detected
-│   └── Weak Words: 8 detected
-├── Vocabulary Metrics
-│   ├── Unique Words: 352
-│   ├── Lexical Diversity: 0.72
-│   ├── Average Word Length: 4.8 chars
-│   └── Vocabulary Complexity: Intermediate
-└── Recommendations
-    ├── Replace weak words →  power words
-    ├── Reduce filler words
-    └── Increase transition usage
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph LR
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    Root((Vocabulary)):::whiteText
+    WC[Word Categories]:::whiteText
+    MT[Metrics]:::whiteText
+    AT[AI Tips]:::whiteText
+    
+    Root --- WC
+    Root --- MT
+    Root --- AT
+    
+    WC --- W1(Power Words 18):::whiteText
+    WC --- W2(Filler Words 12):::whiteText
+    WC --- W3(Hedge Words 5):::whiteText
+    WC --- W4(Weak Words 8):::whiteText
+    
+    MT --- M1(Unique 352):::whiteText
+    MT --- M2(Diversity 0.72):::whiteText
+    MT --- M3(Length 4.8 chars):::whiteText
+    MT --- M4(Complexity Intermediate):::whiteText
+    
+    AT --- A1(Replace weak words):::whiteText
+    AT --- A2(Reduce fillers):::whiteText
+    AT --- A3(Use transitions):::whiteText
+    
+    style Root fill:#4285F4,color:#fff
+    style WC fill:#EA4335,color:#fff
+    style MT fill:#FBBC05,color:#fff
+    style AT fill:#34A853,color:#fff
 ```
 
 ### Facial Expression Module
-```
-Metrics Extracted:
-├── Emotion Timeline
-│   ├── Neutral: 35%
-│   ├── Happy: 40%
-│   ├── Angry: 10%
-│   ├── Sad: 5%
-│   ├── Surprise: 8%
-│   ├── Fear: 1%
-│   └── Disgust: 1%
-├── Engagement Metrics
-│   ├── Smiling: 45% of time
-│   ├── Neutral Expression: 35%
-│   └── Negative Emotions: 15%
-└── Non-Verbal Insights
-    ├── Facial Consistency: Good
-    ├── Expression Authenticity: Natural
-    └── Engagement Level: High
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph LR
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    Root((Facial Module)):::whiteText
+    ET[Emotion Timeline]:::whiteText
+    EG[Engagement]:::whiteText
+    IS[Insights]:::whiteText
+    
+    Root --- ET
+    Root --- EG
+    Root --- IS
+    
+    ET --- E1(Neutral 35%):::whiteText
+    ET --- E2(Happy 40%):::whiteText
+    ET --- E3(Angry 10%):::whiteText
+    ET --- E4(Sad 5%):::whiteText
+    
+    EG --- G1(Smiling 45%):::whiteText
+    EG --- G2(Neutral 35%):::whiteText
+    EG --- G3(Negative 15%):::whiteText
+    
+    IS --- I1(Consistency Good):::whiteText
+    IS --- I2(Authentic Natural):::whiteText
+    IS --- I3(High Engagement):::whiteText
+    
+    style Root fill:#4285F4,color:#fff
+    style ET fill:#EA4335,color:#fff
+    style EG fill:#FBBC05,color:#fff
+    style IS fill:#34A853,color:#fff
 ```
 
 ### Linguistic Analysis Module
-```
-Metrics Extracted:
-├── Parts of Speech Distribution
-│   ├── Nouns: 28%
-│   ├── Verbs: 25%
-│   ├── Adjectives: 15%
-│   ├── Adverbs: 12%
-│   └── Others: 20%
-├── Sentence Metrics
-│   ├── Average Length: 18 words
-│   ├── Complexity Score: 7.5/10
-│   ├── Passive Voice Usage: 5%
-│   └── Question Usage: 12%
-├── Named Entities
-│   ├── People: 5 mentioned
-│   ├── Organizations: 3 mentioned
-│   ├── Locations: 2 mentioned
-│   └── Dates: 1 mentioned
-└── Transitions
-    ├── Coordinating: 12 found
-    ├── Subordinating: 8 found
-    └── Discourse Markers: 6 found
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#2D2D2D', 'primaryTextColor': '#FFFFFF', 'primaryBorderColor': '#FFFFFF', 'lineColor': '#FFFFFF', 'secondaryColor': '#1A1A1A', 'tertiaryColor': '#333333'}}}%%
+graph LR
+    classDef whiteText fill:#2D2D2D,stroke:#FFFFFF,color:#FFFFFF,stroke-width:1px;
+    Root((Linguistics)):::whiteText
+    PD[POS Distribution]:::whiteText
+    ST[Sentences]:::whiteText
+    NE[Named Entities]:::whiteText
+    TR[Transitions]:::whiteText
+    
+    Root --- PD
+    Root --- ST
+    Root --- NE
+    Root --- TR
+    
+    PD --- P1(Nouns 28%):::whiteText
+    PD --- P2(Verbs 25%):::whiteText
+    PD --- P3(Adjectives 15%):::whiteText
+    PD --- P4(Adverbs 12%):::whiteText
+    
+    ST --- S1(Avg length 18):::whiteText
+    ST --- S2(Complexity 7.5):::whiteText
+    ST --- S3(Passive 5%):::whiteText
+    
+    NE --- N1(People 5):::whiteText
+    NE --- N2(Orgs 3):::whiteText
+    NE --- N3(Locs 2):::whiteText
+    
+    TR --- T1(Coordinating 12):::whiteText
+    TR --- T2(Subordinating 8):::whiteText
+    TR --- T3(Discourse 6):::whiteText
+    
+    style Root fill:#4285F4,color:#fff
+    style PD fill:#EA4335,color:#fff
+    style ST fill:#FBBC05,color:#fff
+    style NE fill:#34A853,color:#fff
+    style TR fill:#8E44AD,color:#fff
 ```
 
 ---
